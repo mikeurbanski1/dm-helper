@@ -7,7 +7,7 @@ import { CharacterPanel } from './components/character/characterPanel';
 function App() {
     const [numCharacters, setNumCharacters] = useState<number>(1);
     return (
-        <div>
+        <div className="flex-column panel">
             {Array.from({ length: numCharacters }, (_, i) => (
                 <CharacterPanel key={i} />
             ))}

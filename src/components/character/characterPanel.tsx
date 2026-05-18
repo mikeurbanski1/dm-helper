@@ -11,7 +11,7 @@ export function CharacterPanel() {
     };
 
     return (
-        <div className="character-panel">
+        <div className="flex-column panel">
             <input
                 type="text"
                 placeholder="Character name"

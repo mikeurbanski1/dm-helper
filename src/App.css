@@ -5,8 +5,7 @@ body,
 }
 
 .App {
-    display: flex;
-    flex-direction: column;
+    padding: 1rem;
 }
 
 .flex-row {
@@ -15,14 +14,17 @@ body,
     gap: 1rem;
 }
 
-.dice-roll-ability-panel {
+.flex-column {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    align-items: flex-start;
+}
+
+.panel {
     padding: 1rem;
     border: 1px solid #ccc;
     border-radius: 8px;
-    align-items: flex-start;
 }
 
 .selected-roll {
