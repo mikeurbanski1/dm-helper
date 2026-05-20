@@ -1,31 +1,30 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
-import { DieType, type RollResult } from '../../lib/models/dice';
-import { AttackRoll } from './diceRoll';
+import { AttackRollHandle, DamageRollHandle } from '../../lib/models/dice';
+import { AttackRoll, DiceRoll } from './diceRoll';
 
 type DiceRollAbilityPanelProps = {};
 export function DiceRollAbilityPanel() {
     const [abilityName, setAbilityName] = useState('');
     const [isAttackRoll, setIsAttackRoll] = useState(true);
+    const [numDamageEffects, setNumDamageEffects] = useState(1);
 
-    const [numDice, setNumDice] = useState(1);
-    const [dieType, setDieType] = useState<DieType>(DieType.D8);
-    const [modifier, setModifier] = useState(0);
-    const [rollResult, setRollResult] = useState<RollResult | null>(null);
+    const attackRollRef = useRef<AttackRollHandle>(null);
+    const damageRollRefs = useRef(new Map<number, DamageRollHandle>());
 
-    const handleDamageRoll = () => {
-        const results = Array.from({ length: numDice }, () => Math.floor(Math.random() * dieType) + 1);
-        const result = results.reduce((a, b) => a + b, 0) + modifier;
-        console.log(`Rolling ${numDice}d${dieType} + ${modifier} - total: ${result} (raw: ${results.join(', ')})`);
-        setRollResult({ total: result, raw: results });
+    const rollAllDamage = () => {
+        damageRollRefs.current.forEach((ref, key) => {
+            const result = ref.roll();
+            console.log(`Damage roll ${key} result:`, result);
+        });
     };
 
-    const updateDamageRollModifier = (newModifier: number) => {
-        setModifier(newModifier);
-        if (rollResult) {
-            const total = rollResult.raw.reduce((a, b) => a + b, 0) + newModifier;
-            setRollResult({ ...rollResult, total });
+    const rollAttackAndDamage = () => {
+        if (attackRollRef.current) {
+            const result = attackRollRef.current.roll();
+            console.log('Attack roll result:', result);
         }
+        rollAllDamage();
     };
 
     return (
@@ -36,59 +35,27 @@ export function DiceRollAbilityPanel() {
                     placeholder="Ability name"
                     value={abilityName}
                     onChange={(e) => setAbilityName(e.target.value)}
+                    className="text-input"
                 />
                 <label>
                     <input type="checkbox" checked={isAttackRoll} onChange={(e) => setIsAttackRoll(e.target.checked)} />
-                    Attack roll
+                    Attack roll?
                 </label>
+                {isAttackRoll && <button onClick={rollAttackAndDamage}>Roll attack + damage</button>}
             </div>
-            {isAttackRoll && <AttackRoll />}
+            {isAttackRoll && <AttackRoll ref={attackRollRef} />}
             <div className="flex-row">
-                Effect:{' '}
-                <input
-                    className="number-spinner"
-                    type="number"
-                    placeholder="Number of dice"
-                    value={numDice}
-                    min={1}
-                    onChange={(e) => setNumDice(Number(e.target.value))}
-                />
-                <select
-                    className="dice-selector"
-                    value={dieType}
-                    onChange={(e) => setDieType(Number(e.target.value) as DieType)}
-                >
-                    {Object.values(DieType)
-                        .filter((value) => typeof value === 'number')
-                        .map((value) => (
-                            <option key={value} value={value}>
-                                D{value}
-                            </option>
-                        ))}
-                </select>
-                +
-                <input
-                    className="number-spinner"
-                    type="number"
-                    value={modifier}
-                    onChange={(e) => updateDamageRollModifier(Number(e.target.value))}
-                />
-                <button onClick={handleDamageRoll}>Roll damage</button>
-                {rollResult !== null && (
-                    <span className="roll-result">
-                        Result: ({rollResult.raw.join(' + ')}) + {modifier} = {rollResult.total}
-                    </span>
-                )}
+                Damage: <button onClick={rollAllDamage}>Roll all damage</button>
             </div>
-            {isAttackRoll && (
-                <button
-                    onClick={() => {
-                        handleDamageRoll();
+            {Array.from({ length: numDamageEffects }, (_, i) => (
+                <DiceRoll
+                    key={i}
+                    ref={(ref) => {
+                        damageRollRefs.current.set(i, ref!);
                     }}
-                >
-                    Roll attack + damage
-                </button>
-            )}
+                />
+            ))}
+            <button onClick={() => setNumDamageEffects((prev) => prev + 1)}>Add effect</button>
         </div>
     );
 }

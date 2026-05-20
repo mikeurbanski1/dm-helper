@@ -19,16 +19,26 @@ export enum AdvantageState {
     Disadvantage,
 }
 
+export interface DamageRoll {
+    numDice: number;
+    dieType: DieType;
+    modifier: number;
+}
+
+export interface AttackRoll {
+    modifier: number;
+    advantageState: AdvantageState;
+}
+
 export interface RollResult {
     total: number;
+    modifier: number;
     raw: number[];
 }
 export interface AttackRollResult extends RollResult {
     isCriticalHit: boolean;
     isCriticalMiss: boolean;
-    total: number;
     selectedRollIndex: number;
-    raw: number[];
 }
 export const isAttackRollResult = (result: RollResult | null): result is AttackRollResult => {
     return (
@@ -36,4 +46,12 @@ export const isAttackRollResult = (result: RollResult | null): result is AttackR
         (result as AttackRollResult).isCriticalHit !== undefined &&
         (result as AttackRollResult).isCriticalMiss !== undefined
     );
+};
+
+export type DamageRollHandle = {
+    roll: () => RollResult;
+};
+
+export type AttackRollHandle = {
+    roll: () => AttackRollResult;
 };

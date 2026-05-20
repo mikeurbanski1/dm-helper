@@ -17,6 +17,7 @@ export function CharacterPanel() {
                 placeholder="Character name"
                 value={characterName}
                 onChange={(e) => setCharacterName(e.target.value)}
+                className="text-input"
             />
             {Array.from({ length: numAbilities }, (_, i) => (
                 <DiceRollAbilityPanel key={i} />

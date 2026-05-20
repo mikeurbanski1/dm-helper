@@ -47,3 +47,11 @@ body,
 .dice-selector {
     width: 60px;
 }
+
+.text-input {
+    width: 300px;
+}
+
+.damage-roll-label {
+    width: 100px;
+}
