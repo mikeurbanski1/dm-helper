@@ -14,10 +14,12 @@ type DamageRollProps = {
     defaultNumDice?: number;
     defaultDieType?: DieType;
     defaultModifier?: number;
+    deleteDamageEffect: () => void;
+    reportDamageRollResult: (result?: RollResult) => void;
     // handleRoll: () => RollResult;
 };
 export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, ref) => {
-    const { defaultNumDice, defaultDieType, defaultModifier } = props;
+    const { defaultNumDice, defaultDieType, defaultModifier, deleteDamageEffect, reportDamageRollResult } = props;
     const [label, setLabel] = useState('');
     const [numDice, setNumDice] = useState<number>(defaultNumDice ?? 1);
     const [dieType, setDieType] = useState<DieType>(defaultDieType ?? DieType.D8);
@@ -32,7 +34,7 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
     //     }
     // };
 
-    const handleDamageRoll = () => {
+    const roll = () => {
         const results = Array.from({ length: numDice }, () => Math.floor(Math.random() * dieType) + 1);
         const total = results.reduce((a, b) => a + b, 0) + modifier;
         console.log(`Rolling ${numDice}d${dieType} + ${modifier} - total: ${total} (raw: ${results.join(', ')})`);
@@ -45,12 +47,30 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
         return result;
     };
 
+    const handleDamageRollClick = () => {
+        const result = roll();
+        reportDamageRollResult(result);
+    };
+
+    const clearRoll = () => {
+        setRollResult(undefined);
+    };
+
+    const handleClearRollClick = () => {
+        clearRoll();
+        reportDamageRollResult(undefined);
+    };
+
     useImperativeHandle(ref, () => ({
-        roll: handleDamageRoll,
+        roll,
+        clearRoll,
     }));
 
     return (
         <div className="flex-row">
+            <span className="delete-x" onClick={deleteDamageEffect}>
+                X
+            </span>
             <input
                 type="text"
                 placeholder="Effect label"
@@ -86,7 +106,12 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
                 value={modifier}
                 onChange={(e) => setModifier(Number(e.target.value))}
             />
-            <button onClick={handleDamageRoll}>Roll</button>
+            <button onClick={handleDamageRollClick}>Roll</button>
+            {rollResult !== undefined && (
+                <span className="delete-x" onClick={handleClearRollClick}>
+                    X
+                </span>
+            )}
             {rollResult !== undefined && (
                 <span className="roll-result">
                     Result: ({rollResult.raw.join(' + ')}) + {rollResult.modifier} = {rollResult.total}
@@ -99,10 +124,11 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
 type AttackRollProps = {
     defaultModifier?: number;
     defaultAdvantageState?: AdvantageState;
+    reportAttackRoll: (isRolled: boolean) => void;
     // handleRoll: () => RollResult;
 };
 export const AttackRoll = forwardRef<AttackRollHandle, AttackRollProps>(
-    ({ defaultModifier, defaultAdvantageState }: AttackRollProps, ref) => {
+    ({ defaultModifier, defaultAdvantageState, reportAttackRoll }: AttackRollProps, ref) => {
         const [modifier, setModifier] = useState<number>(defaultModifier ?? 0);
         const [advantageState, setAdvantageState] = useState<AdvantageState>(
             defaultAdvantageState ?? AdvantageState.Normal
@@ -117,7 +143,7 @@ export const AttackRoll = forwardRef<AttackRollHandle, AttackRollProps>(
         //     }
         // };
 
-        const handleAttackRoll = () => {
+        const _roll = () => {
             const rolls = [roll(DieType.D20)];
 
             if (advantageState !== AdvantageState.Normal) {
@@ -152,8 +178,23 @@ export const AttackRoll = forwardRef<AttackRollHandle, AttackRollProps>(
             return result;
         };
 
+        const handleAttackRollClick = () => {
+            const result = _roll();
+            reportAttackRoll(true);
+        };
+
+        const clearRoll = () => {
+            setRollResult(undefined);
+        };
+
+        const handleClearRollClick = () => {
+            clearRoll();
+            reportAttackRoll(false);
+        };
+
         useImperativeHandle(ref, () => ({
-            roll: handleAttackRoll,
+            roll: _roll,
+            clearRoll: () => setRollResult(undefined),
         }));
 
         const rollResultRawElements = rollResult?.raw.reduce(
@@ -198,7 +239,12 @@ export const AttackRoll = forwardRef<AttackRollHandle, AttackRollProps>(
                     <option value={AdvantageState.Advantage}>Adv</option>
                     <option value={AdvantageState.Disadvantage}>Dis</option>
                 </select>
-                <button onClick={handleAttackRoll}>Roll attack</button>
+                <button onClick={handleAttackRollClick}>Roll attack</button>
+                {rollResult !== undefined && (
+                    <span className="delete-x" onClick={handleClearRollClick}>
+                        X
+                    </span>
+                )}
                 {rollResult !== undefined && (
                     <span className="roll-result">
                         Result: ({rollResultRawElements}){!rollResult.isCriticalMiss ? ` + ${rollResult.modifier}` : ''}{' '}

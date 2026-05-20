@@ -50,8 +50,10 @@ export const isAttackRollResult = (result: RollResult | null): result is AttackR
 
 export type DamageRollHandle = {
     roll: () => RollResult;
+    clearRoll: () => void;
 };
 
 export type AttackRollHandle = {
     roll: () => AttackRollResult;
+    clearRoll: () => void;
 };
