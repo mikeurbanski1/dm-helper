@@ -48,12 +48,29 @@ export const isAttackRollResult = (result: RollResult | null): result is AttackR
     );
 };
 
+export enum CriticalHitOption {
+    RollDoubleDice,
+    DoubleRollResult,
+    None,
+}
+
 export type DamageRollHandle = {
-    roll: () => RollResult;
+    roll: (criticalHitOverride?: CriticalHitOption | null) => RollResult;
     clearRoll: () => void;
+    setCriticalHitOption: (option?: CriticalHitOption) => void;
 };
 
 export type AttackRollHandle = {
     roll: () => AttackRollResult;
     clearRoll: () => void;
 };
+
+export interface DiceRollDebugOpts {
+    resultRangeOverride?: [number, number];
+    rollResultOverride?: number[];
+    modifierOverride?: number;
+}
+
+export interface AttackRollDebugOpts extends DiceRollDebugOpts {
+    advantageOverride?: AdvantageState;
+}

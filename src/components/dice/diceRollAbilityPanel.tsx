@@ -1,10 +1,16 @@
 import { useRef, useState } from 'react';
 
-import { AttackRollHandle, DamageRollHandle, RollResult } from '../../lib/models/dice';
+import {
+    AttackRollHandle,
+    AttackRollResult,
+    CriticalHitOption,
+    DamageRollHandle,
+    RollResult,
+} from '../../lib/models/dice';
 import { AttackRoll, DiceRoll } from './diceRoll';
 
 type DiceRollAbilityPanelProps = {};
-export function DiceRollAbilityPanel() {
+export function DiceRollAbilityPanel({}: DiceRollAbilityPanelProps) {
     const [abilityName, setAbilityName] = useState('');
     const [isAttackRoll, setIsAttackRoll] = useState(true);
     const [nextDamageEffectId, setNextDamageEffectId] = useState(1);
@@ -12,16 +18,19 @@ export function DiceRollAbilityPanel() {
     const [damageEffectResults, setDamageEffectResults] = useState<Record<number, RollResult>>({});
     const [totalDamage, setTotalDamage] = useState<number | null>(null);
     const [hasRolledAttack, setHasRolledAttack] = useState(false);
+    const [isCriticalHit, setCriticalHit] = useState(false);
+    const [criticalHitOption, setCriticalHitOption] = useState<CriticalHitOption>(CriticalHitOption.RollDoubleDice);
 
     const attackRollRef = useRef<AttackRollHandle>(null);
     const damageRollRefs = useRef(new Map<number, DamageRollHandle>());
 
-    const rollAllDamage = () => {
+    const rollAllDamage = (criticalHitOverride?: CriticalHitOption | null) => {
+        //criticalHit is needed in the case where we just rolled attack and it is not available in state
         let total = 0;
         const newResults: Record<number, RollResult> = {};
         damageRollRefs.current.forEach((ref, key) => {
             if (ref) {
-                const result = ref.roll();
+                const result = ref.roll(criticalHitOverride);
                 console.log(`Damage roll ${key} result:`, result);
                 total += result.total;
                 newResults[key] = result;
@@ -32,12 +41,23 @@ export function DiceRollAbilityPanel() {
     };
 
     const rollAttackAndDamage = () => {
+        let result: AttackRollResult | undefined = undefined;
+        let criticalHitOverride: CriticalHitOption | null | undefined = undefined;
         if (attackRollRef.current) {
-            const result = attackRollRef.current.roll();
+            result = attackRollRef.current.roll();
             console.log('Attack roll result:', result);
             setHasRolledAttack(true);
+            if (result.isCriticalHit) {
+                setCriticalHit(true);
+                criticalHitOverride = criticalHitOption;
+                updateCriticalHitOption(criticalHitOption);
+            } else {
+                setCriticalHit(false);
+                criticalHitOverride = null; // explicitly clear the critical hit we set previously
+                clearCriticalHitOnChildren();
+            }
         }
-        rollAllDamage();
+        rollAllDamage(criticalHitOverride);
     };
 
     const deleteDamageEffect = (id: number) => {
@@ -77,16 +97,41 @@ export function DiceRollAbilityPanel() {
         });
     };
 
-    const handleAttackRollResult = (isRolled: boolean) => {
-        setHasRolledAttack(isRolled);
+    const reportAttackRollResult = (result?: AttackRollResult) => {
+        setHasRolledAttack(result !== undefined);
+        if (result?.isCriticalHit) {
+            setCriticalHit(true);
+            updateCriticalHitOption(criticalHitOption);
+        } else {
+            setCriticalHit(false);
+            clearCriticalHitOnChildren();
+        }
     };
 
     const clearAllRollResults = () => {
-        setHasRolledAttack(false);
+        reportAttackRollResult();
         clearAllDamageRollResults();
         if (attackRollRef.current) {
             attackRollRef.current.clearRoll();
         }
+        clearCriticalHitOnChildren();
+    };
+
+    const updateCriticalHitOption = (option: CriticalHitOption) => {
+        setCriticalHitOption(option);
+        damageRollRefs.current.forEach((ref) => {
+            if (ref) {
+                ref.setCriticalHitOption(option);
+            }
+        });
+    };
+
+    const clearCriticalHitOnChildren = () => {
+        damageRollRefs.current.forEach((ref) => {
+            if (ref) {
+                ref.setCriticalHitOption(undefined);
+            }
+        });
     };
 
     return (
@@ -110,9 +155,22 @@ export function DiceRollAbilityPanel() {
                     </span>
                 )}
             </div>
-            {isAttackRoll && <AttackRoll reportAttackRoll={handleAttackRollResult} ref={attackRollRef} />}
+            {isCriticalHit && (
+                <div className="flex-row">
+                    <span>Critical Hit!</span>
+                    <select
+                        value={criticalHitOption}
+                        onChange={(e) => updateCriticalHitOption(Number(e.target.value) as CriticalHitOption)}
+                    >
+                        <option value={CriticalHitOption.RollDoubleDice}>Roll double damage dice</option>
+                        <option value={CriticalHitOption.DoubleRollResult}>Double damage result</option>
+                        <option value={CriticalHitOption.None}>None</option>
+                    </select>
+                </div>
+            )}
+            {isAttackRoll && <AttackRoll reportAttackRoll={reportAttackRollResult} ref={attackRollRef} />}
             <div className="flex-row">
-                Damage: <button onClick={rollAllDamage}>Roll all damage</button>
+                Damage: <button onClick={() => rollAllDamage()}>Roll all damage</button>
                 {totalDamage !== null && <span>Total damage: {totalDamage}</span>}
                 {totalDamage !== null && (
                     <span className="delete-x" onClick={clearAllDamageRollResults}>

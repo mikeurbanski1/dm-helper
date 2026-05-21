@@ -4,11 +4,12 @@ import {
     AdvantageState,
     AttackRollHandle,
     AttackRollResult,
+    CriticalHitOption,
     DamageRollHandle,
     DieType,
     RollResult,
 } from '../../lib/models/dice';
-import { roll } from '../../lib/utils/dice';
+import { attackRoll, damageRoll } from '../../lib/utils/dice';
 
 type DamageRollProps = {
     defaultNumDice?: number;
@@ -21,10 +22,12 @@ type DamageRollProps = {
 export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, ref) => {
     const { defaultNumDice, defaultDieType, defaultModifier, deleteDamageEffect, reportDamageRollResult } = props;
     const [label, setLabel] = useState('');
-    const [numDice, setNumDice] = useState<number>(defaultNumDice ?? 1);
+    const [realNumDice, setRealNumDice] = useState(defaultNumDice ?? 1);
+    const [displayNumDice, setDisplayNumDice] = useState(realNumDice);
     const [dieType, setDieType] = useState<DieType>(defaultDieType ?? DieType.D8);
     const [modifier, setModifier] = useState<number>(defaultModifier ?? 0);
     const [rollResult, setRollResult] = useState<RollResult | undefined>();
+    const [criticalHitOption, setCriticalHitOption] = useState<CriticalHitOption | undefined>(undefined);
 
     // const updateRollModifier = (newModifier: number) => {
     //     setModifier(newModifier);
@@ -34,15 +37,9 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
     //     }
     // };
 
-    const roll = () => {
-        const results = Array.from({ length: numDice }, () => Math.floor(Math.random() * dieType) + 1);
-        const total = results.reduce((a, b) => a + b, 0) + modifier;
-        console.log(`Rolling ${numDice}d${dieType} + ${modifier} - total: ${total} (raw: ${results.join(', ')})`);
-        const result: RollResult = {
-            total,
-            modifier,
-            raw: results,
-        };
+    const roll = (criticalHitOverride?: CriticalHitOption | null) => {
+        let overrideToUse = criticalHitOverride !== null ? (criticalHitOverride ?? criticalHitOption) : undefined;
+        const result = damageRoll(realNumDice, dieType, modifier, overrideToUse);
         setRollResult(result);
         return result;
     };
@@ -61,9 +58,29 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
         reportDamageRollResult(undefined);
     };
 
+    const setNumDice = (num: number) => {
+        setRealNumDice(num);
+
+        if (criticalHitOption === CriticalHitOption.RollDoubleDice) {
+            setDisplayNumDice(num * 2);
+        } else {
+            setDisplayNumDice(num);
+        }
+    };
+
+    const updateCriticalHitOption = (option?: CriticalHitOption) => {
+        setCriticalHitOption(option);
+        if (option === CriticalHitOption.RollDoubleDice) {
+            setDisplayNumDice(realNumDice * 2);
+        } else {
+            setDisplayNumDice(realNumDice);
+        }
+    };
+
     useImperativeHandle(ref, () => ({
         roll,
         clearRoll,
+        setCriticalHitOption: updateCriticalHitOption,
     }));
 
     return (
@@ -82,7 +99,7 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
                 className="number-spinner"
                 type="number"
                 placeholder="Number of dice"
-                value={numDice}
+                value={displayNumDice}
                 min={1}
                 onChange={(e) => setNumDice(Number(e.target.value))}
             />
@@ -99,6 +116,7 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
                         </option>
                     ))}
             </select>
+            {criticalHitOption === CriticalHitOption.DoubleRollResult && <span>(X 2)</span>}
             +
             <input
                 className="number-spinner"
@@ -124,7 +142,7 @@ export const DiceRoll = forwardRef<DamageRollHandle, DamageRollProps>((props, re
 type AttackRollProps = {
     defaultModifier?: number;
     defaultAdvantageState?: AdvantageState;
-    reportAttackRoll: (isRolled: boolean) => void;
+    reportAttackRoll: (result?: AttackRollResult) => void;
     // handleRoll: () => RollResult;
 };
 export const AttackRoll = forwardRef<AttackRollHandle, AttackRollProps>(
@@ -144,43 +162,14 @@ export const AttackRoll = forwardRef<AttackRollHandle, AttackRollProps>(
         // };
 
         const _roll = () => {
-            const rolls = [roll(DieType.D20)];
-
-            if (advantageState !== AdvantageState.Normal) {
-                rolls.push(roll(DieType.D20));
-            }
-
-            console.log(
-                `Rolling attack: D20 + ${modifier} with ${AdvantageState[advantageState]} - raw result: ${rolls.join(', ')}`
-            );
-
-            const bestRoll = Math.max(...rolls);
-            const worstRoll = Math.min(...rolls);
-            const rollToUse =
-                advantageState === AdvantageState.Advantage
-                    ? bestRoll
-                    : advantageState === AdvantageState.Disadvantage
-                      ? worstRoll
-                      : bestRoll;
-            const isCriticalHit = rollToUse === 20;
-            const isCriticalMiss = rollToUse === 1;
-            const total = rollToUse + (isCriticalMiss ? 0 : modifier);
-            const selectedRollIndex = rolls.indexOf(rollToUse);
-            const result: AttackRollResult = {
-                total,
-                modifier,
-                raw: rolls,
-                isCriticalHit,
-                isCriticalMiss,
-                selectedRollIndex,
-            };
+            const result = attackRoll(modifier, advantageState, { resultRangeOverride: [18, 20] });
             setRollResult(result);
             return result;
         };
 
         const handleAttackRollClick = () => {
             const result = _roll();
-            reportAttackRoll(true);
+            reportAttackRoll(result);
         };
 
         const clearRoll = () => {
@@ -189,7 +178,7 @@ export const AttackRoll = forwardRef<AttackRollHandle, AttackRollProps>(
 
         const handleClearRollClick = () => {
             clearRoll();
-            reportAttackRoll(false);
+            reportAttackRoll();
         };
 
         useImperativeHandle(ref, () => ({
