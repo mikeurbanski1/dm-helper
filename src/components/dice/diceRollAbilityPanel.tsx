@@ -9,8 +9,10 @@ import {
 } from '../../lib/models/dice';
 import { AttackRoll, DiceRoll } from './diceRoll';
 
-type DiceRollAbilityPanelProps = {};
-export function DiceRollAbilityPanel({}: DiceRollAbilityPanelProps) {
+type DiceRollAbilityPanelProps = {
+    deleteAbility: () => void;
+};
+export function DiceRollAbilityPanel({ deleteAbility }: DiceRollAbilityPanelProps) {
     const [abilityName, setAbilityName] = useState('');
     const [isAttackRoll, setIsAttackRoll] = useState(true);
     const [nextDamageEffectId, setNextDamageEffectId] = useState(1);
@@ -134,9 +136,21 @@ export function DiceRollAbilityPanel({}: DiceRollAbilityPanelProps) {
         });
     };
 
+    const updateAttackRoll = (selected: boolean) => {
+        setIsAttackRoll(selected);
+        if (selected) {
+            updateCriticalHitOption(criticalHitOption);
+        } else {
+            clearAllRollResults();
+        }
+    };
+
     return (
         <div className="flex-column panel">
             <div className="flex-row">
+                <span className="delete-x" onClick={deleteAbility}>
+                    X
+                </span>
                 <input
                     type="text"
                     placeholder="Ability name"
@@ -145,7 +159,13 @@ export function DiceRollAbilityPanel({}: DiceRollAbilityPanelProps) {
                     className="text-input"
                 />
                 <label>
-                    <input type="checkbox" checked={isAttackRoll} onChange={(e) => setIsAttackRoll(e.target.checked)} />
+                    <input
+                        type="checkbox"
+                        checked={isAttackRoll}
+                        onChange={(e) => {
+                            updateAttackRoll(e.target.checked);
+                        }}
+                    />
                     Attack roll?
                 </label>
                 {isAttackRoll && <button onClick={rollAttackAndDamage}>Roll attack + damage</button>}
@@ -155,20 +175,24 @@ export function DiceRollAbilityPanel({}: DiceRollAbilityPanelProps) {
                     </span>
                 )}
             </div>
-            {isCriticalHit && (
-                <div className="flex-row">
-                    <span>Critical Hit!</span>
-                    <select
-                        value={criticalHitOption}
-                        onChange={(e) => updateCriticalHitOption(Number(e.target.value) as CriticalHitOption)}
-                    >
-                        <option value={CriticalHitOption.RollDoubleDice}>Roll double damage dice</option>
-                        <option value={CriticalHitOption.DoubleRollResult}>Double damage result</option>
-                        <option value={CriticalHitOption.None}>None</option>
-                    </select>
-                </div>
-            )}
-            {isAttackRoll && <AttackRoll reportAttackRoll={reportAttackRollResult} ref={attackRollRef} />}
+
+            <div className="flex-column" style={{ display: isAttackRoll ? 'flex' : 'none' }}>
+                <AttackRoll reportAttackRoll={reportAttackRollResult} ref={attackRollRef} />
+                {isCriticalHit && (
+                    <div className="flex-row">
+                        <span>Critical Hit!</span>
+                        <select
+                            value={criticalHitOption}
+                            onChange={(e) => updateCriticalHitOption(Number(e.target.value) as CriticalHitOption)}
+                        >
+                            <option value={CriticalHitOption.RollDoubleDice}>Roll double damage dice</option>
+                            <option value={CriticalHitOption.DoubleRollResult}>Double damage result</option>
+                            <option value={CriticalHitOption.None}>None</option>
+                        </select>
+                    </div>
+                )}
+            </div>
+
             <div className="flex-row">
                 Damage: <button onClick={() => rollAllDamage()}>Roll all damage</button>
                 {totalDamage !== null && <span>Total damage: {totalDamage}</span>}
