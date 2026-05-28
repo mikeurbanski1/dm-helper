@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 
 import {
     AttackRollHandle,
@@ -7,6 +7,8 @@ import {
     DamageRollHandle,
     RollResult,
 } from '../../lib/models/dice';
+import { getRollLogEntry } from '../../lib/utils/rollLog';
+import { RollLogContext } from '../contexts';
 import { AttackRoll, DiceRoll } from './diceRoll';
 
 type DiceRollAbilityPanelProps = {
@@ -23,10 +25,12 @@ export function DiceRollAbilityPanel({ deleteAbility }: DiceRollAbilityPanelProp
     const [isCriticalHit, setCriticalHit] = useState(false);
     const [criticalHitOption, setCriticalHitOption] = useState<CriticalHitOption>(CriticalHitOption.RollDoubleDice);
 
+    const rollLogContext = useContext(RollLogContext);
+
     const attackRollRef = useRef<AttackRollHandle>(null);
     const damageRollRefs = useRef(new Map<number, DamageRollHandle>());
 
-    const rollAllDamage = (criticalHitOverride?: CriticalHitOption | null) => {
+    const rollAllDamage = (criticalHitOverride?: CriticalHitOption | null, logResult = false): RollResult[] => {
         //criticalHit is needed in the case where we just rolled attack and it is not available in state
         let total = 0;
         const newResults: Record<number, RollResult> = {};
@@ -40,6 +44,12 @@ export function DiceRollAbilityPanel({ deleteAbility }: DiceRollAbilityPanelProp
         });
         setDamageEffectResults(newResults);
         setTotalDamage(total);
+        const allResults = Object.values(newResults);
+        if (logResult) {
+            const logEntry = getRollLogEntry(allResults, `All damage for ${abilityName}`);
+            rollLogContext.addLogEntry(logEntry);
+        }
+        return allResults;
     };
 
     const rollAttackAndDamage = () => {
@@ -59,7 +69,10 @@ export function DiceRollAbilityPanel({ deleteAbility }: DiceRollAbilityPanelProp
                 clearCriticalHitOnChildren();
             }
         }
-        rollAllDamage(criticalHitOverride);
+        const damageResults = rollAllDamage(criticalHitOverride);
+        const logResult = result ? { attackRoll: result, damageRolls: damageResults } : damageResults;
+        const logEntry = getRollLogEntry(logResult, `Attack and damage for ${abilityName}`);
+        rollLogContext.addLogEntry(logEntry);
     };
 
     const deleteDamageEffect = (id: number) => {
@@ -77,6 +90,7 @@ export function DiceRollAbilityPanel({ deleteAbility }: DiceRollAbilityPanelProp
         const newResults = { ...damageEffectResults };
         if (result) {
             newResults[id] = result;
+            rollLogContext.addLogEntry(getRollLogEntry(result, `Single damage roll for ${abilityName}`));
         } else {
             delete newResults[id];
         }
@@ -101,9 +115,12 @@ export function DiceRollAbilityPanel({ deleteAbility }: DiceRollAbilityPanelProp
 
     const reportAttackRollResult = (result?: AttackRollResult) => {
         setHasRolledAttack(result !== undefined);
-        if (result?.isCriticalHit) {
-            setCriticalHit(true);
-            updateCriticalHitOption(criticalHitOption);
+        if (result) {
+            rollLogContext.addLogEntry(getRollLogEntry(result, `Attack roll for ${abilityName}`));
+            if (result.isCriticalHit) {
+                setCriticalHit(true);
+                updateCriticalHitOption(criticalHitOption);
+            }
         } else {
             setCriticalHit(false);
             clearCriticalHitOnChildren();

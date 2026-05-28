@@ -1,3 +1,42 @@
+.app-tabs-layout {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+}
+
+.square-tabs {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 100px;
+    background: #f5f5f5;
+    border-right: 1px solid #ccc;
+    padding-top: 1rem;
+}
+
+.square-tab {
+    padding: 1rem 0.5rem;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-right: none;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 0.5rem;
+    background: #e0e0e0;
+    cursor: pointer;
+    transition: background 0.2s, font-weight 0.2s;
+}
+
+.square-tab.selected {
+    background: #fff;
+    font-weight: bold;
+    border-left: 4px solid #0078d4;
+}
+
+.tab-content {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+}
 html,
 body,
 #root {
